@@ -1,10 +1,18 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
+
 import matter from "gray-matter";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { openai, EMBEDDINGS_MODEL } from "@/lib/openia";
 import { chunkText } from "@/lib/chunk";
-export const runtime = "nodejs";
+
+// helper p/ lidar com ESM/CJS em qualquer host
+async function pdfParseCompat(buf: Buffer): Promise<{ text: string }> {
+  const mod: any = await import("pdf-parse");
+  const fn = mod?.default ?? mod; // pega default se existir; senão o módulo em si
+  return fn(buf);
+}
 
 async function fileToText(file: File): Promise<string> {
   const buf = Buffer.from(await file.arrayBuffer());
@@ -12,14 +20,13 @@ async function fileToText(file: File): Promise<string> {
   const mime = file.type || "";
 
   if (mime.includes("pdf") || name.endsWith(".pdf")) {
-    const parsed = await pdfParse(buf);
+    const parsed = await pdfParseCompat(buf);
     return parsed.text;
   }
   if (name.endsWith(".md") || mime.includes("markdown")) {
     const { content } = matter(buf.toString("utf8"));
     return content;
   }
-  // txt / fallback
   return buf.toString("utf8");
 }
 
@@ -27,16 +34,11 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const file = form.get("file") as File | null;
-    if (!file) {
-      return NextResponse.json({ ok: false, error: "file is required" }, { status: 400 });
-    }
+    if (!file) return NextResponse.json({ ok: false, error: "file is required" }, { status: 400 });
 
     const text = (await fileToText(file)).replace(/\s+\n/g, "\n").trim();
-    if (!text) {
-      return NextResponse.json({ ok: false, error: "empty content" }, { status: 400 });
-    }
+    if (!text) return NextResponse.json({ ok: false, error: "empty content" }, { status: 400 });
 
-    // cria documento
     const { data: doc, error: docErr } = await supabase
       .from("rag_documents")
       .insert([{ filename: file.name, mime_type: file.type || "text/plain" }])
@@ -44,12 +46,8 @@ export async function POST(req: NextRequest) {
       .single();
     if (docErr) throw docErr;
 
-    // chunk + embed
     const chunks = chunkText(text);
-    const emb = await openai.embeddings.create({
-      model: EMBEDDINGS_MODEL,
-      input: chunks,
-    });
+    const emb = await openai.embeddings.create({ model: EMBEDDINGS_MODEL, input: chunks });
 
     const rows = chunks.map((c, i) => ({
       document_id: doc.id,
