@@ -2,53 +2,54 @@
 import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
-  const [system_prompt, setSP] = useState("");
-  const [openrouter_model, setModel] = useState("");
-  const [embeddings_model, setEmb] = useState("");
-  const [msg, setMsg] = useState("");
+  const [model, setModel] = useState("openai/gpt-4o-mini");
+  const [systemPrompt, setSystemPrompt] = useState("Você é um assistente útil em pt-BR.");
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const r = await fetch("/api/config");
-      const j = await r.json();
-      setSP(j.system_prompt ?? "");
-      setModel(j.openrouter_model ?? "");
-      setEmb(j.embeddings_model ?? "");
-      setLoading(false);
-    })();
+    const m = localStorage.getItem("cfg:model");
+    const s = localStorage.getItem("cfg:systemPrompt");
+    if (m) setModel(m);
+    if (s) setSystemPrompt(s);
   }, []);
 
-  const save = async () => {
-    setMsg("");
-    const r = await fetch("/api/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_prompt,
-        openrouter_model,
-        embeddings_model,
-      }),
-    });
-    if (r.ok) setMsg("Configuração salva!");
-    else setMsg("Erro ao salvar.");
-  };
+  function save() {
+    localStorage.setItem("cfg:model", model);
+    localStorage.setItem("cfg:systemPrompt", systemPrompt);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
 
-  if (loading) return <main style={{ padding: 24 }}>Carregando…</main>;
   return (
-    <main style={{ padding: 24, maxWidth: 800 }}>
-      <h1>Configurações</h1>
-      <label>System Prompt</label>
-      <textarea value={system_prompt} onChange={e => setSP(e.target.value)} rows={6} style={{ width: "100%" }} />
-      <br /><br />
-      <label>Modelo (OpenRouter)</label>
-      <input value={openrouter_model} onChange={e => setModel(e.target.value)} style={{ width: "100%" }} />
-      <br /><br />
-      <label>Embeddings</label>
-      <input value={embeddings_model} onChange={e => setEmb(e.target.value)} style={{ width: "100%" }} />
-      <br /><br />
-      <button onClick={save}>Salvar</button>
-      {msg && <p>{msg}</p>}
+    <main className="max-w-2xl mx-auto p-6 space-y-4">
+      <h1 className="text-2xl font-semibold">Configurações</h1>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">Modelo</span>
+        <input
+          className="w-full border rounded p-2"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder="openai/gpt-4o-mini, anthropic/claude-3-haiku, meta-llama/..."
+        />
+        <small className="text-gray-500">
+          (Somente leitura no backend: OPENROUTER_API_KEY das envs do servidor)
+        </small>
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">System Prompt</span>
+        <textarea
+          className="w-full border rounded p-2 min-h-[120px]"
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+        />
+      </label>
+
+      <button onClick={save} className="px-4 py-2 rounded bg-black text-white">
+        Salvar
+      </button>
+      {saved && <span className="text-green-600 ml-2">Salvo!</span>}
     </main>
   );
 }
