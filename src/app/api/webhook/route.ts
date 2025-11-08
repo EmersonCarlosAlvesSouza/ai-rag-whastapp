@@ -2,7 +2,7 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import { sendText } from "@/lib/evolution";
-
+export const runtime = "nodejs";
 function getBaseUrl(req: NextRequest) {
   return (
     process.env.NEXT_PUBLIC_BASE_URL ||

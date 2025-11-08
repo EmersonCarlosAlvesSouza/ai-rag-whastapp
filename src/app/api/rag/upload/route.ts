@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { openai, EMBEDDINGS_MODEL } from "@/lib/openia";
 import { chunkText } from "@/lib/chunk";
+export const runtime = "nodejs";
 
 async function fileToText(file: File): Promise<string> {
   const buf = Buffer.from(await file.arrayBuffer());

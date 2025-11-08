@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { openai, EMBEDDINGS_MODEL, CHAT_MODEL } from "@/lib/openia";
-
+export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const { query, documentId, k = 5 } = await req.json();
